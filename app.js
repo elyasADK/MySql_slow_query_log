@@ -4,8 +4,7 @@ import fetch from 'node-fetch';
 import { setInterval } from 'timers';
 import dotenv from 'dotenv';
 
-import { collectDefaultMetrics } from 'prom-client';
-import { Counter, Registry } from 'prom-client';
+import { Counter, Registry, collectDefaultMetrics } from 'prom-client';
 
 dotenv.config();
 
@@ -76,7 +75,7 @@ async function parseSlowQueryLog() {
         const now = new Date();
         const tenMinAgo = new Date(now - 10000000 * 60 * 1000).getTime() / 1000;
 
-        const queryRegex = /^(SELECT|DELETE|ALTER|INSERT|UPDATE)\s/i;
+        const queryRegex = /^(SELECT|DELETE|ALTER|INSERT|UPDATE|update|CREATE|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\s/i;
 
         let fileStream;
         try {
@@ -92,6 +91,7 @@ async function parseSlowQueryLog() {
         });
 
         let queryTime = '';
+        let currentDatabase = '';
 
         fileStream.on('data', (chunk) => {
             lastFilePosition += chunk.length;
@@ -101,6 +101,9 @@ async function parseSlowQueryLog() {
         for await (const line of rl) {
             if (line.startsWith('#') && !line.includes('Query_time:') || !line.trim()) {
                 continue;
+
+            } else if (line.startsWith('use ')) {
+                currentDatabase = ' Database: ' + line.split(' ')[1].replace(';', '');
 
             } else if (line.includes('timestamp=')) {
                 const timestamp = parseInt(line.split('=')[1].replace(';', ''), 10);
@@ -118,7 +121,10 @@ async function parseSlowQueryLog() {
 
             } else if (queryTime !== '') {
                 if (queryRegex.test(line)) {
-                    QUERY_INFO.labels(queryTime, line, SERVER_INSTANCE).inc(parseFloat(queryTime));
+                    QUERY_INFO.labels(queryTime, line + currentDatabase, SERVER_INSTANCE).inc(parseFloat(queryTime));
+                    if (currentDatabase) {
+                        currentDatabase = '';
+                    }
                     await pushMetrics();
                     await delay(15000);
                     QUERY_INFO.reset(queryTime, line, SERVER_INSTANCE);
