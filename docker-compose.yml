@@ -1,0 +1,8 @@
+version: '3.8'
+services:
+  slow-query-metrics:
+    build: .
+    volumes:
+      - ${LOG_PATH}:${LOG_PATH}:ro
+      - ${LAST_FILE_POSITION}:/usr/src/app/lfp_data:rw
+    restart: unless-stopped
