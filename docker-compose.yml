@@ -1,6 +1,7 @@
 version: '3.8'
 services:
-  slow-query-metrics:
+  mysql_slow_query:
+    container_name: 'mysql_slow_query'
     build:
       context: .
       args:
