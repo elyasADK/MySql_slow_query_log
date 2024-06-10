@@ -55,7 +55,7 @@ async function pushMetrics() {
     try {
         const metrics = await register.metrics();
 
-        const response = await fetch(`${PUSHGATEWAY_URL}/metrics/job/slow_query_elyas`, {
+        const response = await fetch(`${PUSHGATEWAY_URL}/metrics/job/slow_query`, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
             body: metrics,
@@ -120,7 +120,6 @@ async function parseSlowQueryLog() {
                 if (queryRegex.test(line)) {
                     QUERY_INFO.labels(queryTime, line, SERVER_INSTANCE).inc(parseFloat(queryTime));
                     await pushMetrics();
-                    console.log(line);
                     await delay(1000);
                     QUERY_INFO.reset(queryTime, line, SERVER_INSTANCE);
                     await pushMetrics();
