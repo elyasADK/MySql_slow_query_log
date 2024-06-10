@@ -1,6 +1,10 @@
 FROM node:14
 
-RUN useradd -ms /bin/bash ovos
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd -g $GID ovos && \
+    useradd -m -u $UID -g ovos -s /bin/bash ovos
 
 WORKDIR /usr/src/app
 

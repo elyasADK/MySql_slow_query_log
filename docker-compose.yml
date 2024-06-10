@@ -1,7 +1,11 @@
 version: '3.8'
 services:
   slow-query-metrics:
-    build: .
+    build:
+      context: .
+      args:
+          UID: ${UID}
+          GID: ${GID}
     volumes:
       - ${LOG_PATH}:${LOG_PATH}:ro
       - ${LAST_FILE_POSITION}:/usr/src/app/lfp_data:rw
