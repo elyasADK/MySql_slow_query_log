@@ -12,6 +12,7 @@ const SLOW_QUERY_LOG = process.env.LOG_PATH || '/var/log/mysql/mysql-slow.log';
 const PUSHGATEWAY_URL = process.env.PUSHGATEWAY_URL;
 const SERVER_INSTANCE = process.env.SERVER_INSTANCE || 'dev';
 const LAST_FILE_POSITION_PATH = './lfp_data/lastFilePosition';
+const LAST_FILE_INODE_PATH = './lfp_data/lastFileInode';
 
 const QUERY_INFO = new Counter({
     name: 'mysql_slow_query_info',
@@ -48,7 +49,30 @@ function loadLastFilePosition() {
     }
 }
 
+function saveLastFileInode(inode) {
+    try {
+        fs.writeFileSync(LAST_FILE_INODE_PATH, inode.toString());
+    } catch (err) {
+        console.error('Error saving last file inode:', err);
+    }
+}
+
+function loadLastFileInode() {
+    try {
+        if (fs.existsSync(LAST_FILE_INODE_PATH)) {
+            const inode = fs.readFileSync(LAST_FILE_INODE_PATH, 'utf-8');
+            return parseInt(inode, 10);
+        } else {
+            fs.writeFileSync(LAST_FILE_INODE_PATH, '0');
+            return 0;
+        }
+    } catch (err) {
+        console.error('Error loading last file inode:', err);
+    }
+}
+
 let lastFilePosition = loadLastFilePosition();
+let lastFileInode = loadLastFileInode();
 
 async function pushMetrics() {
     try {
@@ -77,6 +101,24 @@ async function parseSlowQueryLog() {
 
         const queryRegex = /^(SELECT|DELETE|ALTER|INSERT|UPDATE|update|CREATE|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\s/i;
 
+        let fileStat;
+        try {
+            fileStat = fs.statSync(SLOW_QUERY_LOG);
+        } catch (err) {
+            console.error('Error getting file stats:', err);
+            return;
+        }
+
+        const currentInode = fileStat.ino;
+        if (lastFileInode !== null && lastFileInode !== currentInode) {
+            console.log('Log file has been recreated. maybe because of logrotate. Resetting file position to null.');
+            lastFilePosition = 0;
+            saveLastFilePosition(lastFilePosition);
+        }
+        lastFileInode = currentInode;
+        saveLastFileInode(currentInode);
+        console.log(lastFileInode)
+
         let fileStream;
         try {
             fileStream = fs.createReadStream(SLOW_QUERY_LOG, { start: lastFilePosition });
@@ -95,7 +137,7 @@ async function parseSlowQueryLog() {
 
         fileStream.on('data', (chunk) => {
             lastFilePosition += chunk.length;
-            saveLastFilePosition(lastFilePosition)
+            saveLastFilePosition(lastFilePosition);
         });
 
         for await (const line of rl) {
@@ -125,6 +167,7 @@ async function parseSlowQueryLog() {
                     if (currentDatabase) {
                         currentDatabase = '';
                     }
+                    console.log(line)
                     await pushMetrics();
                     await delay(15000);
                     QUERY_INFO.reset(queryTime, line, SERVER_INSTANCE);
