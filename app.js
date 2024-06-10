@@ -120,7 +120,7 @@ async function parseSlowQueryLog() {
                 if (queryRegex.test(line)) {
                     QUERY_INFO.labels(queryTime, line, SERVER_INSTANCE).inc(parseFloat(queryTime));
                     await pushMetrics();
-                    await delay(1000);
+                    await delay(15000);
                     QUERY_INFO.reset(queryTime, line, SERVER_INSTANCE);
                     await pushMetrics();
                 }
