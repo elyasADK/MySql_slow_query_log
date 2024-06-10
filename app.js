@@ -117,7 +117,6 @@ async function parseSlowQueryLog() {
         }
         lastFileInode = currentInode;
         saveLastFileInode(currentInode);
-        console.log(lastFileInode)
 
         let fileStream;
         try {
@@ -167,7 +166,6 @@ async function parseSlowQueryLog() {
                     if (currentDatabase) {
                         currentDatabase = '';
                     }
-                    console.log(line)
                     await pushMetrics();
                     await delay(15000);
                     QUERY_INFO.reset(queryTime, line, SERVER_INSTANCE);
