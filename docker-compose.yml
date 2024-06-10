@@ -11,3 +11,12 @@ services:
       - ${LOG_PATH}:${LOG_PATH}:ro
       - ${LAST_FILE_POSITION}:/usr/src/app/lfp_data:rw
     restart: unless-stopped
+    networks:
+      - slow_query
+
+networks:
+  slow_query:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
