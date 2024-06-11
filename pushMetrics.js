@@ -25,8 +25,6 @@ register.registerMetric(QUERY_INFO);
 
 collectDefaultMetrics({ register });
 
-// let lastFileCreationTime = loadLastFileCreationTime();
-
 let lastFilePosition = loadLastFilePosition();
 
 function delay(ms) {
@@ -58,25 +56,7 @@ export async function parseSlowQueryLog() {
         const now = new Date();
         const tenMinAgo = new Date(now - 10000000 * 60 * 1000).getTime() / 1000;
 
-        const queryRegex = /^(SELECT|DELETE|ALTER|INSERT|UPDATE|CREATE|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\s/;
-
-        // let fileStat;
-        // try {
-        //     fileStat = statSync(SLOW_QUERY_LOG);
-        // } catch (err) {
-        //     console.error('Error getting file stats:', err);
-        //     return;
-        // }
-
-        // const currentCreationTime = fileStat.birthtimeMs;
-        // if (lastFileCreationTime !== null && lastFileCreationTime !== currentCreationTime) {
-        //     console.log('Log file has been recreated. maybe because of logrotate. Resetting file position to null.');
-        //     lastFilePosition = 0;
-        //     saveLastFilePosition(lastFilePosition);
-        // }
-        // lastFileCreationTime = currentCreationTime;
-        // saveLastFileCreationTime(currentCreationTime);
-        // console.log(lastFileCreationTime)
+        const queryRegex = /^(SELECT|DELETE|ALTER|INSERT|UPDATE|CREATE|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\s/i;
 
         let fileStream;
         try {
