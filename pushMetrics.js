@@ -24,8 +24,6 @@ register.registerMetric(QUERY_INFO);
 
 collectDefaultMetrics({ register });
 
-let lastFilePosition = loadLastFilePosition();
-
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -57,6 +55,7 @@ export async function parseSlowQueryLog() {
 
         const queryRegex = /^(SELECT|DELETE|ALTER|INSERT|UPDATE|CREATE|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\s/i;
 
+        let lastFilePosition = loadLastFilePosition();
         let fileStream;
         try {
             fileStream = createReadStream(SLOW_QUERY_LOG, { start: lastFilePosition });
