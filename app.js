@@ -1,184 +1,36 @@
-import fs from 'fs';
-import readline from 'readline';
-import fetch from 'node-fetch';
+import { statSync } from 'fs';
 import { setInterval } from 'timers';
 import dotenv from 'dotenv';
 
-import { Counter, Registry, collectDefaultMetrics } from 'prom-client';
+import { saveLastFilePosition, loadLastFilePosition } from './filePosition.js';
+import { saveLastFileInode, lastFileInode } from './fileInode.js';
+import { parseSlowQueryLog } from './pushMetrics.js'
+
+const SLOW_QUERY_LOG = process.env.LOG_PATH || '/var/log/mysql/mysql-slow.log';
 
 dotenv.config();
 
-const SLOW_QUERY_LOG = process.env.LOG_PATH || '/var/log/mysql/mysql-slow.log';
-const PUSHGATEWAY_URL = process.env.PUSHGATEWAY_URL;
-const SERVER_INSTANCE = process.env.SERVER_INSTANCE || 'dev';
-const LAST_FILE_POSITION_PATH = './lfp_data/lastFilePosition';
-const LAST_FILE_INODE_PATH = './lfp_data/lastFileInode';
-
-const QUERY_INFO = new Counter({
-    name: 'mysql_slow_query_info',
-    help: 'Info about slow queries',
-    labelNames: ['query_time', 'query', 'server_instance']
-});
-
-const register = new Registry();
-register.registerMetric(QUERY_INFO);
-
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function saveLastFilePosition(position) {
-    try {
-        fs.writeFileSync(LAST_FILE_POSITION_PATH, position.toString());
-    } catch (err) {
-        console.error('Error saving last file position:', err);
-    }
-}
-
-function loadLastFilePosition() {
-    try {
-        if (fs.existsSync(LAST_FILE_POSITION_PATH)) {
-            const position = fs.readFileSync(LAST_FILE_POSITION_PATH, 'utf-8');
-            return parseInt(position, 10);
-        } else {
-            fs.writeFileSync(LAST_FILE_POSITION_PATH, '0');
-            return 0;
-        }
-    } catch (err) {
-        console.error('Error loading last file position:', err);
-    }
-}
-
-function saveLastFileInode(inode) {
-    try {
-        fs.writeFileSync(LAST_FILE_INODE_PATH, inode.toString());
-    } catch (err) {
-        console.error('Error saving last file inode:', err);
-    }
-}
-
-function loadLastFileInode() {
-    try {
-        if (fs.existsSync(LAST_FILE_INODE_PATH)) {
-            const inode = fs.readFileSync(LAST_FILE_INODE_PATH, 'utf-8');
-            return parseInt(inode, 10);
-        } else {
-            fs.writeFileSync(LAST_FILE_INODE_PATH, '0');
-            return 0;
-        }
-    } catch (err) {
-        console.error('Error loading last file inode:', err);
-    }
-}
-
+let lastFileInodeCheck = lastFileInode();
 let lastFilePosition = loadLastFilePosition();
-let lastFileInode = loadLastFileInode();
 
-async function pushMetrics() {
+async function checkInode() {
+    let fileStat;
     try {
-        const metrics = await register.metrics();
-
-        const response = await fetch(`${PUSHGATEWAY_URL}/metrics/job/slow_query`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: metrics,
-        });
-
-        if (!response.ok) {
-            console.error(`Failed to push metrics: ${response.statusText}`);
-        } else {
-            console.log('Metrics pushed successfully');
-        }
+        fileStat = statSync(SLOW_QUERY_LOG);
     } catch (err) {
-        console.log('Error in pushMetrics', err);
+        console.error('Error getting file stats:', err);
+        return;
     }
+
+    const currentInode = fileStat.ino;
+    if (lastFileInodeCheck !== null && lastFileInodeCheck !== currentInode) {
+        console.log('Log file has been recreated. maybe because of logrotate. Resetting file position to null.');
+        lastFilePosition = 0;
+        saveLastFilePosition(lastFilePosition);
+        parseSlowQueryLog();
+    }
+    lastFileInodeCheck = currentInode;
+    saveLastFileInode(lastFileInodeCheck);
 }
 
-async function parseSlowQueryLog() {
-    try {
-        const now = new Date();
-        const tenMinAgo = new Date(now - 10000000 * 60 * 1000).getTime() / 1000;
-
-        const queryRegex = /^(SELECT|DELETE|ALTER|INSERT|UPDATE|update|CREATE|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\s/i;
-
-        let fileStat;
-        try {
-            fileStat = fs.statSync(SLOW_QUERY_LOG);
-        } catch (err) {
-            console.error('Error getting file stats:', err);
-            return;
-        }
-
-        const currentInode = fileStat.ino;
-        if (lastFileInode !== null && lastFileInode !== currentInode) {
-            console.log('Log file has been recreated. maybe because of logrotate. Resetting file position to null.');
-            lastFilePosition = 0;
-            saveLastFilePosition(lastFilePosition);
-        }
-        lastFileInode = currentInode;
-        saveLastFileInode(currentInode);
-
-        let fileStream;
-        try {
-            fileStream = fs.createReadStream(SLOW_QUERY_LOG, { start: lastFilePosition });
-        } catch (err) {
-            console.error('Error opening file:', err);
-            return;
-        }
-
-        const rl = readline.createInterface({
-            input: fileStream,
-            crlfDelay: Infinity
-        });
-
-        let queryTime = '';
-        let currentDatabase = '';
-
-        fileStream.on('data', (chunk) => {
-            lastFilePosition += chunk.length;
-            saveLastFilePosition(lastFilePosition);
-        });
-
-        for await (const line of rl) {
-            if (line.startsWith('#') && !line.includes('Query_time:') || !line.trim()) {
-                continue;
-
-            } else if (line.startsWith('use ')) {
-                currentDatabase = ' Database: ' + line.split(' ')[1].replace(';', '');
-
-            } else if (line.includes('timestamp=')) {
-                const timestamp = parseInt(line.split('=')[1].replace(';', ''), 10);
-
-                if (timestamp < tenMinAgo) {
-                    queryTime = '';
-                }
-
-            } else if (line.includes('Query_time:')) {
-                const match = line.match(/Query_time:\s*([\d.]+)/);
-
-                if (match) {
-                    queryTime = match[1];
-                }
-
-            } else if (queryTime !== '') {
-                if (queryRegex.test(line)) {
-                    QUERY_INFO.labels(queryTime, line + currentDatabase, SERVER_INSTANCE).inc(parseFloat(queryTime));
-                    if (currentDatabase) {
-                        currentDatabase = '';
-                    }
-                    await pushMetrics();
-                    await delay(15000);
-                    QUERY_INFO.reset(queryTime, line, SERVER_INSTANCE);
-                    await pushMetrics();
-                }
-            }
-        }
-    } catch (err) {
-        console.log('Error in parseSlowQueryLog:', err);
-        setTimeout(parseSlowQueryLog, 5000);
-    }
-}
-
-collectDefaultMetrics({ register });
-
-setInterval(parseSlowQueryLog, 5000);
+setInterval(checkInode, 5000);
