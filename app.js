@@ -24,7 +24,7 @@ async function checkInode() {
 
     const currentInode = fileStat.ino;
 
-    if (lastFileInodeCheck === 0 && lastFileInodeCheck !== currentInode) {
+    if (lastFileInodeCheck === 0 || lastFileInodeCheck !== currentInode) {
         console.log('Run app for the first time or logfile recreated. Set lastFileposition to null.');
         lastFilePosition = 0;
         saveLastFilePosition(lastFilePosition);
