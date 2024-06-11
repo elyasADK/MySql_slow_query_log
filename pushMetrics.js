@@ -1,11 +1,10 @@
-import { createReadStream, statSync } from 'fs';
+import { createReadStream } from 'fs';
 import readline from 'readline';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 
 import { Counter, Registry, collectDefaultMetrics } from 'prom-client';
 
-// import { saveLastFileCreationTime, loadLastFileCreationTime } from './fileInode.js';
 import { loadLastFilePosition, saveLastFilePosition } from './filePosition.js';
 
 dotenv.config();

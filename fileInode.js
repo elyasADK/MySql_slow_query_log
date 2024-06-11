@@ -2,7 +2,7 @@ import { writeFileSync, existsSync, readFileSync } from 'fs';
 
 const LAST_FILE_INODE_PATH = './lfp_data/lastFileInode';
 
-export async function saveLastFileInode(inode) {
+export function saveLastFileInode(inode) {
     try {
         writeFileSync(LAST_FILE_INODE_PATH, inode.toString());
     } catch (err) {
@@ -10,7 +10,7 @@ export async function saveLastFileInode(inode) {
     }
 }
 
-export async function lastFileInode() {
+export function loadLastFileInode() {
     try {
         if (existsSync(LAST_FILE_INODE_PATH)) {
             const inode = readFileSync(LAST_FILE_INODE_PATH, 'utf-8');

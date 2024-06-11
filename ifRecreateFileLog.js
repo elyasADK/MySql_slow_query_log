@@ -2,7 +2,7 @@ import { writeFileSync, existsSync, readFileSync } from 'fs';
 
 const LAST_FILE_CREATION_TIME_PATH = './lfp_data/lastFileCreationTime';
 
-export async function saveLastFileCreationTime(creationTime) {
+export function saveLastFileCreationTime(creationTime) {
     try {
         writeFileSync(LAST_FILE_CREATION_TIME_PATH, creationTime.toString());
     } catch (err) {
@@ -10,7 +10,7 @@ export async function saveLastFileCreationTime(creationTime) {
     }
 }
 
-export async function loadLastFileCreationTime() {
+export function loadLastFileCreationTime() {
     try {
         if (existsSync(LAST_FILE_CREATION_TIME_PATH)) {
             const creationTime = readFileSync(LAST_FILE_CREATION_TIME_PATH, 'utf-8');
