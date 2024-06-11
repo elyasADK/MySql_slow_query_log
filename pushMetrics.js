@@ -1,4 +1,4 @@
-import { createReadStream } from 'fs';
+import { createReadStream, statSync } from 'fs';
 import readline from 'readline';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
