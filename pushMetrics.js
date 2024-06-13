@@ -16,7 +16,7 @@ const SERVER_INSTANCE = process.env.SERVER_INSTANCE || 'dev';
 const QUERY_INFO = new Counter({
     name: 'mysql_slow_query_info',
     help: 'Info about slow queries',
-    labelNames: ['query_time', 'query', 'server_instance']
+    labelNames: ['query_time', 'query', 'database', 'server_instance']
 });
 
 const register = new Registry();
@@ -82,7 +82,7 @@ export async function parseSlowQueryLog() {
                 continue;
 
             } else if (line.startsWith('use ')) {
-                currentDatabase = ' Database: ' + line.split(' ')[1].replace(';', '');
+                currentDatabase = line.split(' ')[1].replace(';', '');
 
             } else if (line.includes('timestamp=')) {
                 const timestamp = parseInt(line.split('=')[1].replace(';', ''), 10);
@@ -100,7 +100,7 @@ export async function parseSlowQueryLog() {
 
             } else if (queryTime !== '') {
                 if (queryRegex.test(line)) {
-                    QUERY_INFO.labels(queryTime, line + currentDatabase, SERVER_INSTANCE).inc(parseFloat(queryTime));
+                    QUERY_INFO.labels(queryTime, line, currentDatabase, SERVER_INSTANCE).inc(parseFloat(queryTime));
                     if (currentDatabase) {
                         currentDatabase = '';
                     }
