@@ -106,7 +106,7 @@ export async function parseSlowQueryLog() {
                     }
                     await pushMetrics();
                     await delay(15000);
-                    QUERY_INFO.reset(queryTime, line, SERVER_INSTANCE);
+                    QUERY_INFO.reset();
                     await pushMetrics();
                 }
             }
