@@ -10,9 +10,15 @@ To run the application, follow these steps:
 
 1. Create a `.env` file in the root directory of your project. This file should contain the necessary environment variables, similar to those defined in `.env.example`.
 
-2. Export the current user and group IDs to the environment:
-    ```sh
-    export UID=${UID} && export GID=${GID}
+2. Echo the current user and group IDs and use them in to your .env file:
+
+    for UID:
+   ```sh
+   id -u
+   ```
+    for GID:
+   ```sh
+   id -g
     ```
 
 3. Start the application using Docker Compose:

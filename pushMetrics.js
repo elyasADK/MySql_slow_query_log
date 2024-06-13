@@ -51,7 +51,7 @@ async function pushMetrics() {
 export async function parseSlowQueryLog() {
     try {
         const now = new Date();
-        const tenMinAgo = new Date(now - 10000000 * 60 * 1000).getTime() / 1000;
+        const tenMinAgo = new Date(now - 10 * 60 * 1000).getTime() / 1000;
 
         const queryRegex = /^(SELECT|DELETE|ALTER|INSERT|UPDATE|CREATE|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\s/i;
 

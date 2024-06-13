@@ -1,4 +1,4 @@
 .env
 package-lock.json
 node_modules
-lfp_data/*
+lfp_data
