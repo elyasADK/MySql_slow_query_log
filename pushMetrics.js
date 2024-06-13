@@ -113,6 +113,6 @@ export async function parseSlowQueryLog() {
         }
     } catch (err) {
         console.log('Error in parseSlowQueryLog:', err);
-        setTimeout(parseSlowQueryLog, 5000);
+        return;
     }
 }
